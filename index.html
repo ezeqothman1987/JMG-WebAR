@@ -22,13 +22,13 @@
 
   <!-- Anchor model pada marker -->
   <a-entity mindar-image-target="targetIndex: 0">
-    <a-gltf-model 
-      src="./assets/IgneusGranite.glb"
-      scale="1.5 1.5 1.5"       <!-- Saiz lebih besar -->
-      rotation="-10 0 0"         <!-- Sedikit condong ke depan untuk nampak natural -->
-      position="0 0 0"           <!-- Kekal di tengah marker -->
-    ></a-gltf-model>
-  </a-entity>
+  <a-gltf-model 
+    src="./assets/IgneusGranite.glb"
+    scale="1.5 1.5 1.5"       <!-- Lebih besar supaya nampak “penumbuk” -->
+    rotation="-10 0 0"         <!-- Sedikit condong ke depan -->
+    position="0 0 0"           <!-- Kekal atas marker -->
+  ></a-gltf-model>
+</a-entity>
 
   <!-- Kamera -->
   <a-entity camera></a-entity>
