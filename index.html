@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JMG WebAR Stable</title>
+  <title>JMG WebAR - Marker Kad</title>
 
   <!-- A-Frame CDN -->
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
@@ -20,13 +20,13 @@
 
 <a-scene mindar-image="imageTargetSrc: ./assets/card.mind; autoStart: true;" embedded color-space="sRGB" renderer="antialias: true; colorManagement: true;">
 
-  <!-- Anchor model pada marker -->
+  <!-- Model anchor pada marker -->
   <a-entity mindar-image-target="targetIndex: 0">
     <a-gltf-model 
       src="./assets/IgneusGranite.glb"
-      scale="0.5 0.5 0.5"         <!-- Scale sesuai marker kad -->
-      rotation="-10 0 0"           <!-- Condong sedikit ke depan -->
-      position="0 0 0"             <!-- Kekal tepat atas marker -->
+      scale="0.5 0.5 0.5"       <!-- Scale realistik untuk marker kad -->
+      rotation="-10 0 0"         <!-- Sedikit condong ke depan -->
+      position="0 0 0"           <!-- Kekal tepat atas marker -->
     ></a-gltf-model>
   </a-entity>
 
