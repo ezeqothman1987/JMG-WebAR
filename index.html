@@ -1,72 +1,228 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="ms">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JMG WebAR - Marker Kad Interaktif</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,viewport-fit=cover" />
+  <title>JMG WebAR — Model / Video via MindAR</title>
 
-  <!-- A-Frame CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
+  <!-- A-Frame (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.0/aframe.min.js"></script>
 
-  <!-- MindAR CDN -->
+  <!-- MindAR image tracking for A-Frame (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-aframe.prod.js"></script>
 
-  <!-- Gesture Detector untuk rotate -->
-  <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
-
   <style>
-    body { margin: 0; overflow: hidden; }
-    a-scene { width: 100%; height: 100vh; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial; background:#000; color:#fff; }
+    .topbar { position: fixed; left: 0; right: 0; top: 0; z-index: 999; padding: 8px 12px; background: rgba(0,0,0,0.4); font-size:14px; }
+    .hint { font-size:13px; opacity:0.9; }
+    a.small { color: #8fd; text-decoration: none; }
   </style>
 </head>
 <body>
+  <div class="topbar">
+    <span class="hint">Arahkan kamera ke <strong>QR marker</strong> (7×7 cm). Model/video akan muncul bila dikesan.</span>
+  </div>
 
-<a-scene mindar-image="imageTargetSrc: ./assets/card.mind; autoStart: true;" embedded color-space="sRGB" renderer="antialias: true; colorManagement: true;">
+  <!-- ===== CONFIG: Ganti nilai di bawah dengan lokasi sebenar fail anda ===== -->
+  <script>
+    // ========= EDITABLE: letakkan path sebenar fail anda di GitHub/jsDelivr =========
+    const CONFIG = {
+      // TARGET mind file (Hasil kompilasi MindAR dari imej QR anda)
+      TARGET_MIND_URL: "https://cdn.jsdelivr.net/gh/ezeqothman1987/JMG-WebAR@latest/targets/qr-target.mind",
 
-  <!-- Anchor model pada marker -->
-  <a-entity mindar-image-target="targetIndex: 0" gesture-handler>
-    <a-gltf-model 
-      src="./assets/IgneusGranite.glb"
-      scale="0.5 0.5 0.5"         <!-- Scale sesuai marker kad -->
-      rotation="-10 0 0"           <!-- Sedikit condong ke depan -->
-      position="0 0 0"             <!-- Kekal di atas marker -->
-    ></a-gltf-model>
-  </a-entity>
+      // primary GLB model (host di repo anda -> served via jsDelivr)
+      MODEL_GLTF_URL: "https://cdn.jsdelivr.net/gh/ezeqothman1987/JMG-WebAR@latest/assets/model.glb",
 
-  <!-- Kamera -->
-  <a-entity camera></a-entity>
+      // primary video URL (mp4) - muted autoplay recommended
+      VIDEO_URL: "https://cdn.jsdelivr.net/gh/ezeqothman1987/JMG-WebAR@latest/assets/demo.mp4",
 
-</a-scene>
+      // fallback static image shown if model/video fails to load or sketchfab unreachable
+      FALLBACK_IMAGE_URL: "https://cdn.jsdelivr.net/gh/ezeqothman1987/JMG-WebAR@latest/assets/fallback.jpg",
 
-<!-- Component untuk rotate dengan drag -->
-<script>
-AFRAME.registerComponent('gesture-handler', {
-  init: function () {
-    const el = this.el;
-    let previousX = null;
+      // If you still want to show a Sketchfab embed link (info only) - not used as glb source:
+      SKETCHFAB_MODEL_PAGE: "https://sketchfab.com/3d-models/your-model-id"
+    };
+  </script>
 
-    // Event pointerdown untuk mula drag
-    el.addEventListener('pointerdown', function(evt) {
-      previousX = evt.clientX;
-    });
+  <!-- ===== MindAR + A-Frame scene ===== -->
+  <a-scene
+    mindar-image="imageTargetSrc: url(CONFIG.TARGET_MIND_URL); maxTrack: 1; uiLoading: no; uiScan: no;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    embedded
+    renderer="precision: mediump; antialias: true;"
+  >
+    <!-- kamera (id digunakan oleh look scripts) -->
+    <a-entity id="camera" camera></a-entity>
 
-    // Event pointermove untuk putar model
-    el.addEventListener('pointermove', function(evt) {
-      if (previousX !== null) {
-        const dx = evt.clientX - previousX;
-        let rotation = el.getAttribute('rotation');
-        rotation.y += dx * 0.5; // adjust sensitivity
-        el.setAttribute('rotation', rotation);
-        previousX = evt.clientX;
+    <!-- light -->
+    <a-entity light="type: directional; intensity: 0.9" position="0 1 0"></a-entity>
+    <a-entity light="type: ambient; intensity: 0.6"></a-entity>
+
+    <!-- anchor bagi targetIndex 0 (gambar QR): semua objek AR dimasukkan di sini -->
+    <a-entity mindar-image-target="targetIndex: 0" id="anchor">
+
+      <!-- 3D model (GLB) -->
+      <a-entity id="gltfModel"
+                visible="false"
+                scale="0.14 0.14 0.14"
+                position="0 0 0"
+                rotation="0 0 0"
+                gltf-model=""
+                animation-mixer=""
+      ></a-entity>
+
+      <!-- video plane (muted autoplay loop). Video tag disimpan di DOM -->
+      <a-entity id="videoPlane" visible="false" position="0 0 0.01" rotation="-90 0 0">
+        <a-plane id="videoPlaneMesh" width="0.18" height="0.10" material="shader: flat; src: #arVideo"></a-plane>
+      </a-entity>
+
+      <!-- fallback static image plane -->
+      <a-plane id="fallbackPlane" visible="false" position="0 0 0.01" rotation="-90 0 0" width="0.18" height="0.18"
+               material="shader: flat; src: #fallbackTex"></a-plane>
+
+    </a-entity>
+
+    <!-- hidden video element for a-video / texture -->
+    <video id="arVideo" playsinline webkit-playsinline crossorigin="anonymous" loop muted preload="auto" crossorigin></video>
+
+    <!-- textures -->
+    <a-assets>
+      <img id="fallbackTex" crossorigin="anonymous" src="">
+    </a-assets>
+
+  </a-scene>
+
+  <!-- ===== Logic: load assets, handle target found/lost, fallback behavior ===== -->
+  <script>
+    (function(){
+      // assign config from above
+      const C = CONFIG;
+
+      // helper: set src of asset elements (fallback image and video)
+      document.getElementById('fallbackTex').src = C.FALLBACK_IMAGE_URL;
+      const videoEl = document.getElementById('arVideo');
+      videoEl.src = C.VIDEO_URL;
+
+      const sceneEl = document.querySelector('a-scene');
+      const mindarComponent = sceneEl && sceneEl.components && sceneEl.components['mindar-image'];
+
+      // get entities
+      const anchorEl = document.getElementById('anchor');
+      const modelEl = document.getElementById('gltfModel');
+      const videoPlaneEl = document.getElementById('videoPlane');
+      const fallbackPlaneEl = document.getElementById('fallbackPlane');
+
+      // set gltf-model url dynamically (and listen for error)
+      function setModel(url){
+        modelEl.setAttribute('gltf-model', url);
+        // reduce scale as needed so physical size ~ 14 cm when marker is 7 cm
+        modelEl.setAttribute('scale', '0.14 0.14 0.14'); // tweak if model size differs
+        modelEl.addEventListener('model-error', onModelError);
       }
-    });
 
-    // Event pointerup / pointerleave untuk stop drag
-    el.addEventListener('pointerup', function() { previousX = null; });
-    el.addEventListener('pointerleave', function() { previousX = null; });
-  }
-});
-</script>
+      function onModelError(e){
+        console.warn("Model load error:", e);
+        // show fallback image
+        showFallback();
+      }
 
+      // show/hide helpers
+      function showModel(){
+        modelEl.setAttribute('visible', 'true');
+        videoPlaneEl.setAttribute('visible', 'false');
+        fallbackPlaneEl.setAttribute('visible', 'false');
+      }
+      function showVideo(){
+        modelEl.setAttribute('visible', 'false');
+        videoPlaneEl.setAttribute('visible', 'true');
+        fallbackPlaneEl.setAttribute('visible', 'false');
+        // try play video (muted -> allowed to autoplay on mobile)
+        videoEl.play().catch(()=>{ console.log("video autoplay prevented; user gesture needed"); });
+      }
+      function showFallback(){
+        modelEl.setAttribute('visible', 'false');
+        videoPlaneEl.setAttribute('visible', 'false');
+        fallbackPlaneEl.setAttribute('visible', 'true');
+      }
+      function hideAll(){
+        modelEl.setAttribute('visible', 'false');
+        videoPlaneEl.setAttribute('visible', 'false');
+        fallbackPlaneEl.setAttribute('visible', 'false');
+        videoEl.pause();
+      }
+
+      // Set the model to load from GitHub/jsDelivr (recommended)
+      setModel(C.MODEL_GLTF_URL);
+
+      // Try load model first; if fails, fallback will be triggered by model-error
+      // Option: if you prefer video instead of model, comment setModel(...) and call showVideo in targetfound.
+
+      // Rotate model to face camera horizontally while tracking (makes orientation change when user turns phone)
+      sceneEl.addEventListener('rendererinitialized', ()=>{
+        // set up a small tick to update model yaw so it faces camera on horizontal plane
+        sceneEl.addEventListener('tick', function(){
+          if (modelEl.getAttribute('visible') !== true) return;
+          const camera = document.querySelector('#camera');
+          if (!camera) return;
+          const camPos = new THREE.Vector3();
+          const modelWorldPos = new THREE.Vector3();
+          camera.object3D.getWorldPosition(camPos);
+          modelEl.object3D.getWorldPosition(modelWorldPos);
+          // compute yaw to face camera (ignore pitch)
+          const dx = camPos.x - modelWorldPos.x;
+          const dz = camPos.z - modelWorldPos.z;
+          const yaw = Math.atan2(dx, dz) * (180 / Math.PI);
+          modelEl.object3D.rotation.y = THREE.MathUtils.degToRad(yaw);
+        });
+      });
+
+      // MindAR events
+      // mindar-image-target events fire on the anchor itself
+      anchorEl.addEventListener('targetFound', (e)=>{
+        console.log("targetFound");
+        // decide: show model (default). If you prefer video, switch to showVideo()
+        showModel();
+      });
+      anchorEl.addEventListener('targetLost', (e)=>{
+        console.log("targetLost");
+        hideAll();
+      });
+
+      // If model loaded ok, nothing else needed. But we also add a timeout guard: if model takes too long, show fallback
+      let modelLoadTimer = setTimeout(()=> {
+        // if model hasn't become visible or hasn't loaded, show fallback
+        // model element fires 'model-loaded' event on success
+        if (!modelEl.getObject3D('mesh')) {
+          console.warn("Model load timeout -> showing fallback");
+          showFallback();
+        }
+      }, 7000);
+
+      modelEl.addEventListener('model-loaded', ()=> {
+        console.log("Model loaded OK");
+        clearTimeout(modelLoadTimer);
+      });
+
+      // Small UX: when user clicks screen and video is present but not playing, start it (user gesture)
+      document.body.addEventListener('click', () => {
+        if (videoEl.paused && videoEl.src) {
+          videoEl.play().catch(()=>{});
+        }
+      });
+
+      // start MindAR when page visible (auto)
+      // Note: mindar-image init happens by A-Frame automatically on scene load
+
+    })();
+  </script>
+
+  <p style="position: fixed;bottom:6px;left:8px;font-size:12px;color:#ddd;opacity:0.9">
+    Jika mahu lihat model di Sketchfab: <a class="small" href="#" id="sketchfabLink" target="_blank">Lihat</a>
+  </p>
+
+  <script>
+    document.getElementById('sketchfabLink').href = CONFIG.SKETCHFAB_MODEL_PAGE;
+  </script>
 </body>
 </html>
